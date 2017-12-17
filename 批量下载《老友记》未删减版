@@ -1,0 +1,15 @@
+from lxml import etree    # 如果解析网页的时候，返回的列表为空，很可能是因为页面中有JavaScript。
+from selenium import webdriver   # 这个库简直太棒了，JavaScript的克星。
+import os
+
+url = "http://tv.sohu.com/s2012/0244/s348351639/"
+brower = webdriver.PhantomJS()
+brower.get(url)
+html = etree.HTML(brower.page_source)
+urls = html.xpath("//ul[@class='series2']/li/a/@href")
+i = 1
+for url in urls:
+    my_cmd = "you-get -o D:\老友记\ {}".format(url)
+    os.system(my_cmd)
+    print("已经下载完第{}集！".format(i))
+    i += 1
