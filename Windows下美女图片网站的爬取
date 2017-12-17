@@ -1,0 +1,77 @@
+import requests
+from lxml import etree
+import os
+import time
+from multiprocessing.dummy import Pool
+
+headers = {
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36',
+    "Referer": "http://www.mm131.com"
+}
+
+def get_pictures(url):
+    r = requests.get(url, headers=headers)
+    r.encoding = r.apparent_encoding
+    html = etree.HTML(r.text)
+    img_title = html.xpath('//div[@class="content"]/h5/text()')
+    img_title = img_title[0]  # 终于找出专辑名：性感妹子桃美洋子巨乳肥臀风情万种
+    img_url = html.xpath("//div[@class='content-pic']/a/img/@src")
+    img_url = img_url[0]  # 终于找出专辑里的第一张图片地址：http://img1.mm131.me/pic/3393/1.jpg
+    if not os.path.exists(r'D:\美女'):
+        os.mkdir(r'D:\美女')
+    os.mkdir(r'D:\美女\{}'.format(img_title))
+    pic_path_and_name = r'D:\美女\{}\01.jpg'.format(img_title)
+
+    time.sleep(1)
+    with open(pic_path_and_name, 'wb') as fp:
+        each_img = requests.get(img_url, headers=headers)
+        fp.write(each_img.content)
+        fp.flush()
+        print('{}1.jpg\t已经保存到本地！'.format(img_title))
+
+    total = html.xpath('//div[@class="content-page"]/span[@class="page-ch"]/text()')
+    total = int(total[0][1:-1])  # 找到专辑中图片的数量，用它来构建新的地址
+
+    for i in range(2, total + 1):
+        new_img_url = url[:-5] + "_" + str(i) + ".html"
+        r = requests.get(new_img_url, headers=headers)
+        r.encoding = r.apparent_encoding
+        html = etree.HTML(r.text)
+
+        img_new_url1 = html.xpath("//div[@class='content-pic']/a/img/@src")
+        img_new_url2 = html.xpath("//div[@class='content-pic']/img/@src")
+
+        if len(img_new_url1) == 0:
+            img_new_url = img_new_url2[0]
+        else:
+            img_new_url = img_new_url1[0]
+
+        if i < 10:
+            pic_path_and_name = r'D:\美女\{}\0{}.jpg'.format(img_title, i)
+        else:
+            pic_path_and_name = r'D:\美女\{}\{}.jpg'.format(img_title, i)
+
+        time.sleep(1)
+        with open(pic_path_and_name, 'wb') as fp:
+            each_img = requests.get(img_new_url, headers=headers)
+            print('{}{}.jpg\t已经保存到本地！'.format(img_title, i))
+            fp.write(each_img.content)
+            fp.flush()
+    print("------------------------------------------------------------------------------------------------")
+
+each_page_urls = ['http://www.mm131.com/xinggan/']
+for j in range(2, 119):
+    each_page_urls.append('http://www.mm131.com/xinggan/list_6_{}.html'.format(j))
+
+for each_page_url in each_page_urls:  # 从最后一页开始
+    rr = requests.get(each_page_url, headers=headers)
+    rr.encoding = rr.apparent_encoding
+    rr_html = etree.HTML(rr.text)
+    one_page_urls = rr_html.xpath('//div[@class="main"]/dl[@class="list-left public-box"]/dd/a[@target="_blank"]/@href')
+    pool = Pool()
+    pool.map(get_pictures, one_page_urls)
+    pool.close()
+    pool.join()
+    print("{}页已经完成下载，10秒后继续下一页！！！！！！！".format(each_page_url))
+    print("------------------------------------------------------------------------------------------------")
+    time.sleep(10)
