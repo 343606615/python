@@ -1,0 +1,58 @@
+# -*- coding: utf-8 -*-
+import scrapy
+import re
+import os
+import requests
+from multiprocessing.dummy import Pool
+
+headers = {
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36',
+    "Referer": "http://www.mm131.com"
+}
+
+class BeautySpider(scrapy.Spider):
+    name = 'beauty'
+    allowed_domains = ['mm131.com']
+    start_urls = ['http://www.mm131.com/xinggan/']
+
+    def download_imgs(self, url):
+        img_name = url.split('/')[-1]
+        with open(r'{}'.format(img_name), 'wb') as fp:
+            img_data = requests.get(url, headers=headers)
+            fp.write(img_data.content)
+            fp.flush()
+
+    def get_img_parse(self, response):
+        title = response.xpath('//div[@class="content"]/h5/text()').extract_first()
+        img_url = response.css('div.content-pic a img').xpath('@src').extract_first()
+        url_list = [img_url]
+        count = int(response.css('div.content-page span.page-ch').xpath('text()').re(r'.*?共(\d+)页')[0])
+
+        for i in range(2, count + 1):
+            url_list.append(re.sub('1.jpg', '{}.jpg'.format(i), img_url))
+
+        if not os.path.exists(r'D:\美女\{}'.format(title)):
+            os.makedirs(r'D:\美女\{}'.format(title))
+
+        path = r'D:\美女\{}'.format(title)
+        os.chdir(path)  # 这条语句非常关键，通过它可以不断的改变当前的工作目录，为之后用相对地址打开文件变成可能。
+                        # 通过os.getcwd()可以查看当前的工作目录。
+
+        pool = Pool()
+        pool.map(self.download_imgs, url_list)
+        pool.close()
+        pool.join()
+
+        yield {
+            'title': title,
+            'url_list': url_list
+        }
+
+    def parse(self, response):
+        img_urls = response.xpath('//body/div[4]/dl/dd/a[@target="_blank"]/@href').extract()
+        for img_url in img_urls:
+            yield scrapy.Request(url=img_url, callback=self.get_img_parse)
+
+        # n_page = response.css('a.page-en').re(r'href="(.*?)"\s.*?下一页')
+        # for url in n_page:
+        #     yield response.follow(url, self.parse)
