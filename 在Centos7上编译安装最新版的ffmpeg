@@ -1,0 +1,71 @@
+下载
+wget -c ftp://195.220.108.108/linux/dag/redhat/el6/en/x86_64/dag/RPMS/rpmforge-release-0.5.3-1.el6.rf.x86_64.rpm
+
+安装
+rpm -Uhv rpmforge-release-0.5.3-1.el6.rf.x86_64.rpm
+
+依赖
+yum install automake autoconf make gcc gcc-c++ libtool zlib zlib-devel curl curl-devel alsa-lib alsa-lib-devel gettext gettext-devel expat expat-devel nasm pkgconfig bzip2 -y
+
+安装 yasm,gnutls, lame,faac
+yum install yasm yasm-devel gnutls gnutls-devel  lame lame-devel faac faac-devel -y
+
+
+卸载系统自带的，如果不卸载，可能在安装ffmpeg时会出现版本问
+yum remove x264 x264-deve
+
+
+安装最新的x264
+wget -c ftp://ftp.videolan.org/pub/x264/snapshots/x264-snapshot-20120718-2245-stable.tar.bz2
+
+解压
+tar jxvf x264-snapshot-20120718-2245-stable.tar.bz2
+cd x264-snapshot-20120718-2245-stable
+./configure --enable-shared  --enable-static
+make
+make install
+
+
+先安装libfdk_aac，以免之后找不到。
+https://sourceforge.net/projects/opencore-amr/files/fdk-aac/
+下载fdk-aac-0.1.5.tar.gz 
+[root@localhost 下载]# tar   -zxvf   fdk-aac-0.1.5.tar.gz 
+[root@localhost 下载]# cd fdk-aac-0.1.5/
+[root@localhost fdk-aac-0.1.5]# ./configure && make && make install
+
+
+
+这两步操作，是为了防止出现libfdk和libx264找不到的错误提示：
+
+WARNING: using libfdk without pkg-config
+
+WARNING: using libx264 without pkg-config
+[root@localhost 下载]# echo $PKG_CONFIG_PATH
+没有任何内容
+[root@localhost 下载]# export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
+此时再通过“echo $PKG_CONFIG_PATH”命令，可以看到如下内容：
+/usr/local/lib/pkgconfig:
+
+
+编译安装ffmpeg：
+先到官网下载最新版的源码文件，届时可以通过类似如下命令“wget http://ffmpeg.org/releases/ffmpeg-3.4.1.tar.bz2”，当有了更新的版本，只有替换下载链接即可。
+[root@localhost 下载]# tar   -jxvf ffmpeg-3.4.1.tar.bz2
+[root@localhost 下载]# cd ffmpeg-3.4.1/
+[root@localhost ffmpeg-3.4.1]# ./configure --prefix=/usr/local/ --enable-gpl --enable-version3 --enable-nonfree --enable-shared --enable-zlib --enable-libmp3lame --enable-libx264 --enable-pic --enable-libfdk-aac --enable-libfreetype
+其中最后一项“--enable-libfreetype”是为了开启'drawtext'，日后通过ffmpeg命令给视频加文字。
+[root@localhost ffmpeg-3.4.1]# make
+[root@localhost ffmpeg-3.4.1]# make install
+
+编辑配置文件：
+[root@localhost 下载]# vi /etc/ld.so.conf
+在“include ld.so.conf.d/*.conf”的下一行，输入“/usr/local/lib/”，按“ESC”取消输入模式，按“shift+：”，输入“wq”保存并退出。
+[root@localhost 下载]# ldconfig
+dconfig通常在系统启动时运行,而当用户安装了一个新的动态链接库时,就需要手动运行这个命令。
+
+
+配置ffmpeg全局变量：
+[root@localhost 下载]# vi /etc/profile
+在最后一行输入，“export    FFMPEG=/usr/local/ffmpeg”，保存退出。
+
+检查安装是否安装好：
+ffmpeg -version
